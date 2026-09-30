@@ -15,9 +15,12 @@ import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
+import Chat from "./pages/chat";
 
 function App() {
   const [page, setPage] = useState("login");
+  const [activeChatId, setActiveChatId] = useState(null);
+const [chatUserName, setChatUserName] = useState("User");
   
   useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -133,15 +136,26 @@ if (page === "login") {
       </div>
     );
   }
+  if (page === "chat")
+  return (
+    <Chat
+      chatId={activeChatId}
+      otherUserName={chatUserName}
+      setPage={setPage}
+    />
+  );
 
   if (page === "aiMatches") {
     return (
       <div>
         <AIMatches
-          lostItems={lostItems}
-          foundItems={foundItems}
-          addClaim={addClaim}
-        />
+  lostItems={lostItems}
+  foundItems={foundItems}
+  addClaim={addClaim}
+  setPage={setPage}
+  setActiveChatId={setActiveChatId}
+  setChatUserName={setChatUserName}
+/>
         <BackButton setPage={setPage} />
       </div>
     );

@@ -3,10 +3,15 @@ import {
   collection,
   getDocs,
   addDoc,
+  doc,
+  setDoc,
 } from "firebase/firestore";
-import { db } from "../firebase";
 
-/* ================= HELPER FUNCTION ================= */
+import { auth, db } from "../firebase";
+
+// ===============================
+// HELPER FUNCTIONS
+// ===============================
 
 const getField = (item, fields) => {
   for (const field of fields) {
@@ -14,11 +19,14 @@ const getField = (item, fields) => {
       return item[field];
     }
   }
+
   return "";
 };
 
 const clean = (value) =>
-  String(value || "").trim().toLowerCase();
+  String(value || "")
+    .trim()
+    .toLowerCase();
 
 const hasCommonWord = (value1, value2) => {
   const words1 = clean(value1)
@@ -32,57 +40,31 @@ const hasCommonWord = (value1, value2) => {
   return words1.some((word) => words2.includes(word));
 };
 
-/* ================= MATCH CARD ================= */
+// ===============================
+// MATCH CARD
+// ===============================
 
-function MatchCard({ match, index, handleClaim }) {
-  const lost = match.lost;
-  const found = match.found;
-
-  const lostName =
-    getField(lost, ["name", "itemName"]) || "Not provided";
-
-  const foundName =
-    getField(found, ["name", "itemName"]) || "Not provided";
-
-  const lostCategory =
-    getField(lost, ["category"]) || "Not provided";
-
-  const foundCategory =
-    getField(found, ["category"]) || "Not provided";
-
-  const lostColor =
-    getField(lost, ["colour", "color"]) || "Not provided";
-
-  const foundColor =
-    getField(found, ["colour", "color"]) || "Not provided";
-
-  const lostBrand =
-    getField(lost, ["brand"]) || "Not provided";
-
-  const foundBrand =
-    getField(found, ["brand"]) || "Not provided";
-
-  const lostLocation =
-    getField(lost, ["location"]) || "Not provided";
-
-  const foundLocation =
-    getField(found, ["location"]) || "Not provided";
-
-  const lostDate =
-    getField(lost, ["date"]) || "Not provided";
-
-  const foundDate =
-    getField(found, ["date"]) || "Not provided";
+function MatchCard({
+  match,
+  index,
+  handleClaim,
+  handleStartChat,
+}) {
+  const confidence =
+    match.score >= 80
+      ? "Very High"
+      : match.score >= 65
+      ? "High"
+      : "Medium";
 
   return (
     <div
       style={{
-        background: "#ffffff",
-        borderRadius: "22px",
+        background: "white",
         padding: "25px",
-        marginTop: "22px",
-        boxShadow: "0 10px 30px rgba(49,94,251,0.10)",
-        border: "1px solid #e8ecff",
+        borderRadius: "20px",
+        marginBottom: "25px",
+        boxShadow: "0 8px 25px rgba(0,0,0,0.07)",
       }}
     >
       {/* HEADER */}
@@ -92,76 +74,29 @@ function MatchCard({ match, index, handleClaim }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          marginBottom: "20px",
           gap: "15px",
           flexWrap: "wrap",
         }}
       >
-        <div>
-          <h3
-            style={{
-              margin: 0,
-              color: "#1f2937",
-              fontSize: "21px",
-            }}
-          >
-            🎯 Potential Match #{index + 1}
-          </h3>
-
-          <p
-            style={{
-              margin: "7px 0 0",
-              color: "#667085",
-              fontSize: "14px",
-            }}
-          >
-            AI detected similarities between these items
-          </p>
-        </div>
+        <h3 style={{ margin: 0 }}>
+          🎯 Potential Match #{index + 1}
+        </h3>
 
         <div
           style={{
-            textAlign: "center",
             background: "#eef2ff",
-            padding: "12px 20px",
-            borderRadius: "16px",
+            color: "#4f46e5",
+            padding: "8px 14px",
+            borderRadius: "20px",
+            fontWeight: "bold",
           }}
         >
-          <div
-            style={{
-              fontSize: "24px",
-              fontWeight: "800",
-              color: "#4f46e5",
-            }}
-          >
-            {match.score}%
-          </div>
-
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "700",
-              color:
-                match.confidence === "Very High"
-                  ? "#15803d"
-                  : match.confidence === "High"
-                  ? "#2563eb"
-                  : "#b45309",
-            }}
-          >
-            🧠 {match.confidence}
-          </div>
+          {match.score}% Match
         </div>
       </div>
 
-      <hr
-        style={{
-          margin: "20px 0",
-          border: "none",
-          borderTop: "1px solid #edf0f7",
-        }}
-      />
-
-      {/* LOST + FOUND */}
+      {/* ITEMS */}
 
       <div
         style={{
@@ -171,196 +106,120 @@ function MatchCard({ match, index, handleClaim }) {
           gap: "20px",
         }}
       >
-        {/* LOST */}
+        {/* LOST ITEM */}
 
         <div
           style={{
-            background: "#fff5f5",
-            border: "1px solid #fecaca",
-            borderRadius: "18px",
+            background: "#fff7f7",
             padding: "20px",
+            borderRadius: "15px",
+            border: "1px solid #fee2e2",
           }}
         >
-          <div
-            style={{
-              display: "inline-block",
-              background: "#fee2e2",
-              color: "#dc2626",
-              padding: "7px 12px",
-              borderRadius: "20px",
-              fontWeight: "700",
-              fontSize: "13px",
-              marginBottom: "15px",
-            }}
-          >
-            🔴 LOST ITEM
-          </div>
-
-          <h3
-            style={{
-              margin: "0 0 15px",
-              color: "#991b1b",
-            }}
-          >
-            {lostName}
-          </h3>
+          <h3>🔴 Lost Item</h3>
 
           <p>
-            <strong>📂 Category:</strong> {lostCategory}
+            <strong>Item:</strong>{" "}
+            {match.lost.name ||
+              match.lost.itemName ||
+              "Not provided"}
           </p>
 
           <p>
-            <strong>🎨 Colour:</strong> {lostColor}
+            <strong>Category:</strong>{" "}
+            {match.lost.category || "Not provided"}
           </p>
 
           <p>
-            <strong>🏷️ Brand:</strong> {lostBrand}
+            <strong>Colour:</strong>{" "}
+            {match.lost.colour ||
+              match.lost.color ||
+              "Not provided"}
           </p>
 
           <p>
-            <strong>📍 Location:</strong> {lostLocation}
+            <strong>Brand:</strong>{" "}
+            {match.lost.brand || "Not provided"}
           </p>
 
           <p>
-            <strong>📅 Date:</strong> {lostDate}
+            <strong>Location:</strong>{" "}
+            {match.lost.location || "Not provided"}
+          </p>
+
+          <p>
+            <strong>Date:</strong>{" "}
+            {match.lost.date || "Not provided"}
           </p>
         </div>
 
-        {/* FOUND */}
+        {/* FOUND ITEM */}
 
         <div
           style={{
-            background: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            borderRadius: "18px",
+            background: "#f7fff9",
             padding: "20px",
+            borderRadius: "15px",
+            border: "1px solid #dcfce7",
           }}
         >
-          <div
-            style={{
-              display: "inline-block",
-              background: "#dcfce7",
-              color: "#15803d",
-              padding: "7px 12px",
-              borderRadius: "20px",
-              fontWeight: "700",
-              fontSize: "13px",
-              marginBottom: "15px",
-            }}
-          >
-            🟢 FOUND ITEM
-          </div>
-
-          <h3
-            style={{
-              margin: "0 0 15px",
-              color: "#166534",
-            }}
-          >
-            {foundName}
-          </h3>
+          <h3>🟢 Found Item</h3>
 
           <p>
-            <strong>📂 Category:</strong> {foundCategory}
+            <strong>Item:</strong>{" "}
+            {match.found.name ||
+              match.found.itemName ||
+              "Not provided"}
           </p>
 
           <p>
-            <strong>🎨 Colour:</strong> {foundColor}
+            <strong>Category:</strong>{" "}
+            {match.found.category || "Not provided"}
           </p>
 
           <p>
-            <strong>🏷️ Brand:</strong> {foundBrand}
+            <strong>Colour:</strong>{" "}
+            {match.found.colour ||
+              match.found.color ||
+              "Not provided"}
           </p>
 
           <p>
-            <strong>📍 Location:</strong> {foundLocation}
+            <strong>Brand:</strong>{" "}
+            {match.found.brand || "Not provided"}
           </p>
 
           <p>
-            <strong>📅 Date:</strong> {foundDate}
+            <strong>Location:</strong>{" "}
+            {match.found.location || "Not provided"}
+          </p>
+
+          <p>
+            <strong>Date:</strong>{" "}
+            {match.found.date || "Not provided"}
           </p>
         </div>
       </div>
 
-      {/* MATCH REASONS */}
+      {/* MATCH INFORMATION */}
 
       <div
         style={{
           marginTop: "20px",
+          padding: "15px",
           background: "#f8faff",
-          borderRadius: "18px",
-          padding: "20px",
-          border: "1px solid #e0e7ff",
+          borderRadius: "12px",
         }}
       >
-        <h4
-          style={{
-            marginTop: 0,
-            color: "#4338ca",
-            fontSize: "16px",
-          }}
-        >
-          🧠 Why AI thinks this is a match
-        </h4>
-
-        {match.reasons.length > 0 ? (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "8px",
-            }}
-          >
-            {match.reasons.map((reason, reasonIndex) => (
-              <span
-                key={reasonIndex}
-                style={{
-                  background: "#eef2ff",
-                  color: "#4338ca",
-                  padding: "8px 12px",
-                  borderRadius: "20px",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                }}
-              >
-                ✓ {reason}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p>No matching details available.</p>
-        )}
-      </div>
-
-      {/* SCORE BAR */}
-
-      <div
-        style={{
-          marginTop: "20px",
-          background: "#f8fafc",
-          padding: "18px",
-          borderRadius: "16px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: "8px",
-            fontWeight: "700",
-          }}
-        >
-          <span>AI Match Confidence</span>
-          <span style={{ color: "#4f46e5" }}>
-            {match.score}/100
-          </span>
-        </div>
+        <strong>🤖 AI Match Confidence:</strong>{" "}
+        {confidence}
 
         <div
           style={{
-            height: "12px",
+            marginTop: "10px",
+            height: "8px",
             background: "#e5e7eb",
-            borderRadius: "20px",
+            borderRadius: "10px",
             overflow: "hidden",
           }}
         >
@@ -369,14 +228,34 @@ function MatchCard({ match, index, handleClaim }) {
               width: `${match.score}%`,
               height: "100%",
               background:
-                "linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899)",
-              borderRadius: "20px",
+                "linear-gradient(90deg, #6366f1, #8b5cf6)",
             }}
           />
         </div>
       </div>
 
-      {/* CLAIM */}
+      {/* MATCH REASONS */}
+
+      {match.reasons?.length > 0 && (
+        <div
+          style={{
+            marginTop: "15px",
+            color: "#475467",
+          }}
+        >
+          <strong>🤖 Why AI thinks this is a match:</strong>
+
+          <ul>
+            {match.reasons.map((reason, i) => (
+              <li key={i} style={{ marginTop: "6px" }}>
+                ✓ {reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* CLAIM BUTTON */}
 
       <button
         onClick={() => handleClaim(match)}
@@ -398,21 +277,51 @@ function MatchCard({ match, index, handleClaim }) {
       >
         🔐 Claim This Item
       </button>
+
+      {/* CHAT BUTTON */}
+
+      <button
+        onClick={() => handleStartChat(match)}
+        style={{
+          marginTop: "10px",
+          width: "100%",
+          padding: "15px",
+          border: "2px solid #6366f1",
+          borderRadius: "14px",
+          background: "white",
+          color: "#6366f1",
+          fontSize: "16px",
+          fontWeight: "700",
+          cursor: "pointer",
+        }}
+      >
+        💬 Start Chat
+      </button>
     </div>
   );
 }
 
-/* ================= MAIN COMPONENT ================= */
+// ===============================
+// MAIN AI MATCHES COMPONENT
+// ===============================
 
-function AIMatches({ addClaim }) {
+function AIMatches({
+  addClaim,
+  setPage,
+  setActiveChatId,
+  setChatUserName,
+}) {
   const [lostItems, setLostItems] = useState([]);
   const [foundItems, setFoundItems] = useState([]);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const calculateMatch = (lost, found) => {
+  // ===============================
+  // CALCULATE MATCH SCORE
+  // ===============================
+
+  const calculateScore = (lost, found) => {
     let score = 0;
-    const reasons = [];
 
     const lostName = getField(lost, [
       "name",
@@ -432,12 +341,12 @@ function AIMatches({ addClaim }) {
       "category",
     ]);
 
-    const lostColor = getField(lost, [
+    const lostColour = getField(lost, [
       "colour",
       "color",
     ]);
 
-    const foundColor = getField(found, [
+    const foundColour = getField(found, [
       "colour",
       "color",
     ]);
@@ -466,122 +375,110 @@ function AIMatches({ addClaim }) {
       "date",
     ]);
 
-    const lostDescription = getField(lost, [
-      "description",
+    const lostDetails = getField(lost, [
       "details",
+      "description",
     ]);
 
-    const foundDescription = getField(found, [
-      "description",
+    const foundDetails = getField(found, [
       "details",
+      "description",
     ]);
 
-    /* ITEM NAME */
+    // NAME
 
     if (
-      clean(lostName) &&
-      clean(foundName) &&
+      lostName &&
+      foundName &&
       clean(lostName) === clean(foundName)
     ) {
       score += 25;
-      reasons.push("Item name matches");
     } else if (
+      lostName &&
+      foundName &&
       hasCommonWord(lostName, foundName)
     ) {
       score += 15;
-      reasons.push("Item name is similar");
     }
 
-    /* CATEGORY */
+    // CATEGORY
 
     if (
-      clean(lostCategory) &&
+      lostCategory &&
+      foundCategory &&
       clean(lostCategory) === clean(foundCategory)
     ) {
       score += 25;
-      reasons.push("Category matches");
     }
 
-    /* COLOUR */
+    // COLOUR
 
     if (
-      clean(lostColor) &&
-      clean(lostColor) === clean(foundColor)
+      lostColour &&
+      foundColour &&
+      clean(lostColour) === clean(foundColour)
     ) {
       score += 15;
-      reasons.push("Colour matches");
     }
 
-    /* BRAND */
+    // BRAND
 
     if (
-      clean(lostBrand) &&
+      lostBrand &&
+      foundBrand &&
       clean(lostBrand) === clean(foundBrand)
     ) {
       score += 15;
-      reasons.push("Brand matches");
     }
 
-    /* LOCATION */
+    // LOCATION
 
     if (
-      clean(lostLocation) &&
+      lostLocation &&
+      foundLocation &&
       clean(lostLocation) === clean(foundLocation)
     ) {
       score += 10;
-      reasons.push("Location matches");
     } else if (
+      lostLocation &&
+      foundLocation &&
       hasCommonWord(
         lostLocation,
         foundLocation
       )
     ) {
       score += 5;
-      reasons.push("Location is similar");
     }
 
-    /* DATE */
+    // DATE
 
     if (
-      clean(lostDate) &&
+      lostDate &&
+      foundDate &&
       clean(lostDate) === clean(foundDate)
     ) {
       score += 5;
-      reasons.push("Date matches");
     }
 
-    /* DESCRIPTION */
+    // DESCRIPTION
 
     if (
+      lostDetails &&
+      foundDetails &&
       hasCommonWord(
-        lostDescription,
-        foundDescription
+        lostDetails,
+        foundDetails
       )
     ) {
       score += 5;
-      reasons.push(
-        "Description has similar details"
-      );
     }
 
-    let confidence = "Low";
-
-    if (score >= 80) {
-      confidence = "Very High";
-    } else if (score >= 65) {
-      confidence = "High";
-    } else if (score >= 50) {
-      confidence = "Medium";
-    }
-
-    return {
-      score,
-      confidence,
-      reasons,
-    };
+    return score;
   };
 
-  /* ================= LOAD FIREBASE DATA ================= */
+  // ===============================
+  // LOAD FIREBASE DATA
+  // ===============================
 
   useEffect(() => {
     const loadData = async () => {
@@ -597,46 +494,216 @@ function AIMatches({ addClaim }) {
         );
 
         const lost = lostSnapshot.docs.map(
-          (doc) => ({
-            id: doc.id,
-            ...doc.data(),
+          (itemDoc) => ({
+            id: itemDoc.id,
+            ...itemDoc.data(),
           })
         );
 
         const found = foundSnapshot.docs.map(
-          (doc) => ({
-            id: doc.id,
-            ...doc.data(),
+          (itemDoc) => ({
+            id: itemDoc.id,
+            ...itemDoc.data(),
           })
         );
 
         setLostItems(lost);
         setFoundItems(found);
 
-        const generatedMatches = [];
+        const result = [];
 
         lost.forEach((lostItem) => {
           found.forEach((foundItem) => {
-            const result = calculateMatch(
+            const score = calculateScore(
               lostItem,
               foundItem
             );
 
-            if (result.score >= 50) {
-              generatedMatches.push({
+            if (score >= 50) {
+              const reasons = [];
+
+              const lostName = getField(
+                lostItem,
+                ["name", "itemName"]
+              );
+
+              const foundName = getField(
+                foundItem,
+                ["name", "itemName"]
+              );
+
+              const lostCategory = getField(
+                lostItem,
+                ["category"]
+              );
+
+              const foundCategory = getField(
+                foundItem,
+                ["category"]
+              );
+
+              const lostColour = getField(
+                lostItem,
+                ["colour", "color"]
+              );
+
+              const foundColour = getField(
+                foundItem,
+                ["colour", "color"]
+              );
+
+              const lostBrand = getField(
+                lostItem,
+                ["brand"]
+              );
+
+              const foundBrand = getField(
+                foundItem,
+                ["brand"]
+              );
+
+              const lostLocation = getField(
+                lostItem,
+                ["location"]
+              );
+
+              const foundLocation = getField(
+                foundItem,
+                ["location"]
+              );
+
+              const lostDate = getField(
+                lostItem,
+                ["date"]
+              );
+
+              const foundDate = getField(
+                foundItem,
+                ["date"]
+              );
+
+              const lostDetails = getField(
+                lostItem,
+                ["details", "description"]
+              );
+
+              const foundDetails = getField(
+                foundItem,
+                ["details", "description"]
+              );
+
+              // NAME
+              if (
+                lostName &&
+                foundName &&
+                (
+                  clean(lostName) === clean(foundName) ||
+                  hasCommonWord(
+                    lostName,
+                    foundName
+                  )
+                )
+              ) {
+                reasons.push(
+                  "Item name matches"
+                );
+              }
+
+              // CATEGORY
+              if (
+                lostCategory &&
+                foundCategory &&
+                clean(lostCategory) ===
+                  clean(foundCategory)
+              ) {
+                reasons.push(
+                  "Category matches"
+                );
+              }
+
+              // COLOUR
+              if (
+                lostColour &&
+                foundColour &&
+                clean(lostColour) ===
+                  clean(foundColour)
+              ) {
+                reasons.push(
+                  "Colour matches"
+                );
+              }
+
+              // BRAND
+              if (
+                lostBrand &&
+                foundBrand &&
+                clean(lostBrand) ===
+                  clean(foundBrand)
+              ) {
+                reasons.push(
+                  "Brand matches"
+                );
+              }
+
+              // LOCATION
+              if (
+                lostLocation &&
+                foundLocation &&
+                (
+                  clean(lostLocation) ===
+                    clean(foundLocation) ||
+                  hasCommonWord(
+                    lostLocation,
+                    foundLocation
+                  )
+                )
+              ) {
+                reasons.push(
+                  "Location matches"
+                );
+              }
+
+              // DATE
+              if (
+                lostDate &&
+                foundDate &&
+                clean(lostDate) ===
+                  clean(foundDate)
+              ) {
+                reasons.push(
+                  "Date matches"
+                );
+              }
+
+              // DESCRIPTION
+              if (
+                lostDetails &&
+                foundDetails &&
+                hasCommonWord(
+                  lostDetails,
+                  foundDetails
+                )
+              ) {
+                reasons.push(
+                  "Description has similar details"
+                );
+              }
+
+              result.push({
                 lost: lostItem,
                 found: foundItem,
-                ...result,
+                score,
+                reasons,
               });
             }
           });
         });
 
-        generatedMatches.sort(
+        result.sort(
           (a, b) => b.score - a.score
         );
 
-        setMatches(generatedMatches);
+        setMatches(result);
       } catch (error) {
         console.error(
           "Error loading AI matches:",
@@ -650,7 +717,95 @@ function AIMatches({ addClaim }) {
     loadData();
   }, []);
 
-  /* ================= CLAIM ================= */
+  // ===============================
+  // START CHAT
+  // ===============================
+
+  const handleStartChat = async (match) => {
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      alert("Please login first.");
+      return;
+    }
+
+    const lostUserId = match.lost.userId;
+    const foundUserId = match.found.userId;
+
+    if (!lostUserId || !foundUserId) {
+      alert(
+        "User information is missing for this match."
+      );
+      return;
+    }
+
+    // Only users involved in the match can chat
+
+    if (
+      currentUser.uid !== lostUserId &&
+      currentUser.uid !== foundUserId
+    ) {
+      alert(
+        "You can only chat about a match involving your account."
+      );
+      return;
+    }
+
+    // Create a unique chat for this exact match
+
+    const chatId = [
+      lostUserId,
+      foundUserId,
+      match.lost.id,
+      match.found.id,
+    ].join("_");
+
+    try {
+      await setDoc(
+        doc(db, "chats", chatId),
+        {
+          participants: [
+            lostUserId,
+            foundUserId,
+          ],
+
+          lostItemId: match.lost.id,
+          foundItemId: match.found.id,
+
+          createdAt: new Date(),
+        },
+        { merge: true }
+      );
+
+      const otherUserId =
+        currentUser.uid === lostUserId
+          ? foundUserId
+          : lostUserId;
+
+      setChatUserName(
+        otherUserId === foundUserId
+          ? "Found Item User"
+          : "Lost Item User"
+      );
+
+      setActiveChatId(chatId);
+
+      setPage("chat");
+    } catch (error) {
+      console.error(
+        "Error starting chat:",
+        error
+      );
+
+      alert(
+        "Could not start chat. Please try again."
+      );
+    }
+  };
+
+  // ===============================
+  // CLAIM
+  // ===============================
 
   const handleClaim = async (match) => {
     const claimData = {
@@ -674,80 +829,55 @@ function AIMatches({ addClaim }) {
     };
 
     try {
-      const claimRef = await addDoc(
+      await addDoc(
         collection(db, "claims"),
         claimData
       );
 
       if (addClaim) {
-        addClaim({
-          id: claimRef.id,
-          ...claimData,
-        });
+        addClaim(claimData);
       }
 
       alert(
-        "Claim submitted successfully! Go to Claims."
+        "Claim submitted successfully!"
       );
     } catch (error) {
       console.error(
-        "Error submitting claim:",
+        "Error creating claim:",
         error
       );
 
       alert(
-        "Failed to submit claim. Please try again."
+        "Could not submit claim."
       );
     }
   };
 
-  /* ================= LOADING ================= */
+  // ===============================
+  // LOADING
+  // ===============================
 
   if (loading) {
     return (
       <div
         style={{
-          minHeight: "70vh",
+          minHeight: "100vh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background:
-            "linear-gradient(135deg, #eef2ff, #fdf4ff)",
-          padding: "30px",
+          background: "#f5f7ff",
         }}
       >
-        <div
-          style={{
-            background: "white",
-            padding: "40px",
-            borderRadius: "24px",
-            textAlign: "center",
-            boxShadow:
-              "0 10px 30px rgba(0,0,0,0.08)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "45px",
-              marginBottom: "10px",
-            }}
-          >
-            🤖
-          </div>
-
-          <h2 style={{ color: "#4338ca" }}>
-            AI is finding matches...
-          </h2>
-
-          <p style={{ color: "#667085" }}>
-            Comparing lost and found items
-          </p>
-        </div>
+        <h2>
+          🤖 AI is finding matches...
+        </h2>
       </div>
     );
   }
 
-  /* ================= MAIN PAGE ================= */
+  // ===============================
+  // PAGE
+  // ===============================
 
   return (
     <div
@@ -755,7 +885,7 @@ function AIMatches({ addClaim }) {
         minHeight: "100vh",
         background:
           "linear-gradient(135deg, #f5f7ff, #faf5ff)",
-        padding: "30px 20px 50px",
+        padding: "50px 30px",
       }}
     >
       <div
@@ -764,165 +894,46 @@ function AIMatches({ addClaim }) {
           margin: "0 auto",
         }}
       >
-        {/* PAGE HEADER */}
+        {/* HEADER */}
 
         <div
           style={{
-            background:
-              "linear-gradient(135deg, #4f46e5, #7c3aed)",
-            color: "white",
-            borderRadius: "24px",
-            padding: "30px",
-            marginBottom: "25px",
-            boxShadow:
-              "0 12px 30px rgba(79,70,229,0.25)",
+            textAlign: "center",
+            marginBottom: "40px",
           }}
         >
           <div
             style={{
-              fontSize: "40px",
-              marginBottom: "5px",
+              display: "inline-block",
+              padding: "8px 16px",
+              background: "#e8edff",
+              color: "#315efb",
+              borderRadius: "20px",
+              fontWeight: "bold",
+              fontSize: "14px",
             }}
           >
-            🤖
+            🤖 AI-POWERED MATCHING
           </div>
 
           <h1
             style={{
-              margin: 0,
-              fontSize: "30px",
+              fontSize: "42px",
+              margin: "20px 0 10px",
             }}
           >
-            AI-Powered Matches
+            AI Matches
           </h1>
 
           <p
             style={{
-              margin: "10px 0 0",
-              opacity: 0.9,
-              fontSize: "15px",
+              color: "#667085",
+              fontSize: "17px",
             }}
           >
-            Smart matching between lost and found
-            campus items
+            ReuniteAI compares lost and found
+            items automatically.
           </p>
-        </div>
-
-        {/* SUMMARY */}
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: "15px",
-            marginBottom: "25px",
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              padding: "20px",
-              borderRadius: "18px",
-              boxShadow:
-                "0 5px 18px rgba(0,0,0,0.06)",
-              borderLeft: "5px solid #ef4444",
-            }}
-          >
-            <div style={{ fontSize: "25px" }}>
-              🔴
-            </div>
-
-            <strong
-              style={{
-                display: "block",
-                marginTop: "5px",
-                color: "#667085",
-              }}
-            >
-              Lost Items
-            </strong>
-
-            <span
-              style={{
-                fontSize: "28px",
-                fontWeight: "800",
-                color: "#dc2626",
-              }}
-            >
-              {lostItems.length}
-            </span>
-          </div>
-
-          <div
-            style={{
-              background: "#fff",
-              padding: "20px",
-              borderRadius: "18px",
-              boxShadow:
-                "0 5px 18px rgba(0,0,0,0.06)",
-              borderLeft: "5px solid #22c55e",
-            }}
-          >
-            <div style={{ fontSize: "25px" }}>
-              🟢
-            </div>
-
-            <strong
-              style={{
-                display: "block",
-                marginTop: "5px",
-                color: "#667085",
-              }}
-            >
-              Found Items
-            </strong>
-
-            <span
-              style={{
-                fontSize: "28px",
-                fontWeight: "800",
-                color: "#16a34a",
-              }}
-            >
-              {foundItems.length}
-            </span>
-          </div>
-
-          <div
-            style={{
-              background: "#fff",
-              padding: "20px",
-              borderRadius: "18px",
-              boxShadow:
-                "0 5px 18px rgba(0,0,0,0.06)",
-              borderLeft: "5px solid #8b5cf6",
-            }}
-          >
-            <div style={{ fontSize: "25px" }}>
-              🎯
-            </div>
-
-            <strong
-              style={{
-                display: "block",
-                marginTop: "5px",
-                color: "#667085",
-              }}
-            >
-              AI Matches
-            </strong>
-
-            <span
-              style={{
-                fontSize: "28px",
-                fontWeight: "800",
-                color: "#7c3aed",
-              }}
-            >
-              {matches.length}
-            </span>
-          </div>
         </div>
 
         {/* NO MATCHES */}
@@ -931,8 +942,8 @@ function AIMatches({ addClaim }) {
           <div
             style={{
               background: "white",
-              borderRadius: "22px",
-              padding: "50px 25px",
+              padding: "50px",
+              borderRadius: "20px",
               textAlign: "center",
               boxShadow:
                 "0 8px 25px rgba(0,0,0,0.06)",
@@ -941,67 +952,68 @@ function AIMatches({ addClaim }) {
             <div
               style={{
                 fontSize: "55px",
-                marginBottom: "10px",
               }}
             >
               🔍
             </div>
-
-            <h2 style={{ color: "#344054" }}>
-              No matches found yet
+            <h2>
+              No Live Matches Yet
             </h2>
 
-            <p style={{ color: "#667085" }}>
-              We couldn't find any potential matches
-              between the current lost and found items.
+            <p
+              style={{
+                color: "#667085",
+              }}
+            >
+              When a lost item matches a found
+              item, it will appear here.
             </p>
           </div>
         ) : (
           <>
-            {/* MATCH INTRO */}
+            {/* MATCH COUNT */}
 
             <div
               style={{
-                background: "#ffffff",
+                background: "white",
+                padding: "25px",
                 borderRadius: "20px",
-                padding: "22px",
+                marginBottom: "20px",
                 boxShadow:
-                  "0 6px 20px rgba(0,0,0,0.06)",
-                marginBottom: "10px",
+                  "0 8px 25px rgba(0,0,0,0.05)",
               }}
             >
-              <h2
-                style={{
-                  margin: 0,
-                  color: "#4338ca",
-                }}
-              >
-                🎯 {matches.length} Potential Match
-                {matches.length !== 1 ? "es" : ""}
+              <h2>
+                🎯 {matches.length} Potential{" "}
+                {matches.length !== 1
+                  ? "Matches"
+                  : "Match"}
               </h2>
 
               <p
                 style={{
-                  marginBottom: 0,
                   color: "#667085",
                 }}
               >
                 AI compares item name, category,
-                colour, brand, location, date and
-                description.
+                colour, brand, location, date
+                and description.
               </p>
             </div>
 
-            {/* MATCHES */}
+            {/* MATCH CARDS */}
 
-            {matches.map((match, index) => (
-              <MatchCard
-                key={`${match.lost.id}-${match.found.id}-${index}`}
-                match={match}
-                index={index}
-                handleClaim={handleClaim}
-              />
-            ))}
+            {matches.map(
+              (match, index) => (
+                <MatchCard
+                  key={`${match.lost.id}-${match.found.id}-${index}`}
+                  match={match}
+                  index={index}
+                  handleClaim={handleClaim}
+                  handleStartChat={handleStartChat}
+                />
+              )
+            )}
           </>
         )}
       </div>
