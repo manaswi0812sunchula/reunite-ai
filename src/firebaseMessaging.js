@@ -36,7 +36,6 @@ export const requestNotificationPermission = async () => {
           { merge: true }
         );
 
-        alert("🔔 Push notifications enabled successfully!");
       }
 
       return token;
